@@ -1,0 +1,648 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+{% load custom_filters %}
+
+{% block extrastyle %}
+    <style>
+        .dashboard-container {
+            max-width: 100%;
+            padding: 20px;
+        }
+        .filter-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        .filter-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .filter-item {
+            flex: 1;
+            min-width: 200px;
+        }
+        .filter-item label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .filter-item select,
+        .filter-item input {
+            width: 100%;
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+        }
+        .button-row {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        .button {
+            padding: 8px 15px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background-color: #a5d8ff;  /* 浅蓝色 */
+            color: #0056b3;  /* 深蓝色文字，提高对比度 */
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .button:hover {
+            background-color: #74c0fc;  /* 悬停时颜色加深 */
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            font-size: 12px;
+        }
+        .data-table th, .data-table td {
+            padding: 6px;
+            border: 1px solid #ddd;
+            text-align: left;
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .data-table th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        .data-table tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .data-table tr:hover {
+            background-color: #e9e9e9;
+        }
+        .tables-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: space-between;
+        }
+        .data-container {
+            width: calc(50% - 10px);
+            margin-bottom: 30px;
+        }
+        .table-container {
+            height: 400px;
+            overflow-y: auto;
+            overflow-x: auto;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .error-message {
+            color: #a94442;
+            background-color: #f2dede;
+            border: 1px solid #ebccd1;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .no-data-message {
+            padding: 20px;
+            text-align: center;
+            color: #777;
+        }
+        .table-title {
+            margin-top: 30px;
+            padding: 10px;
+            background-color: #e6e6e6;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .table-description {
+            margin: 10px 0;
+            color: #666;
+        }
+        .filter-item input[type="date"] {
+            width: 100%;
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+        }
+        .json-display {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f8f9fa;
+            padding: 15px;
+            margin-top: 15px;
+            height: auto;
+            min-height: 150px;
+            max-height: 500px;
+            overflow-y: auto;
+            font-family: monospace;
+            white-space: pre-wrap;
+            font-size: 12px;
+        }
+        #dataAnalysis {
+            font-family: "Microsoft YaHei", sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #fff;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .analysis-container {
+            margin-top: 20px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+            background-color: #fff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: none;
+        }
+        .analysis-content {
+            font-family: "Microsoft YaHei", sans-serif;
+            line-height: 1.6;
+            color: #333;
+            white-space: pre-wrap;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            display: none;
+        }
+        .button-primary {
+            padding: 8px 15px;
+            border: 1px solid #2c5282;
+            border-radius: 4px;
+            background-color: #3182ce;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .button-primary:hover {
+            background-color: #2b6cb0;
+        }
+        .save-button-container {
+            margin-top: 10px;
+            display: flex;
+            justify-content: flex-end;
+        }
+        @media (max-width: 1200px) {
+            .data-container {
+                width: 100%;
+            }
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <h1>京东数据看板</h1>
+    
+    <div class="filter-section">
+        <form id="filterForm" method="get" action="">
+            {% csrf_token %}
+            <div class="filter-row">
+                <div class="filter-item">
+                    <label for="category">数据类别：</label>
+                    <select id="category" name="category" onchange="updateSubcategories()">
+                        <option value="">所有类别</option>
+                        <option value="京麦商品搜索看板" {% if selected_category == '京麦商品搜索看板' %}selected{% endif %}>京麦商品搜索看板</option>
+                        <option value="京准通行业大盘" {% if selected_category == '京准通行业大盘' %}selected{% endif %}>京准通行业大盘</option>
+                        <option value="京准通其他数据" {% if selected_category == '京准通其他数据' %}selected{% endif %}>京准通其他数据</option>
+                        <option value="商智基本数据" {% if selected_category == '商智基本数据' %}selected{% endif %}>商智基本数据</option>
+                        <option value="商智内容数据" {% if selected_category == '商智内容数据' %}selected{% endif %}>商智内容数据</option>
+                        <option value="商智产品数据" {% if selected_category == '商智产品数据' %}selected{% endif %}>商智产品数据</option>
+                        <option value="八爪鱼" {% if selected_category == '八爪鱼' %}selected{% endif %}>八爪鱼数据</option>
+                        <option value="EasySpider" {% if selected_category == 'EasySpider' %}selected{% endif %}>EasySpider数据</option>
+                    </select>
+                </div>
+                <div class="filter-item">
+                    <label for="subcategory">子类别：</label>
+                    <select id="subcategory" name="subcategory">
+                        <option value="">所有子类别</option>
+                        {% for subcat in subcategories %}
+                            <option value="{{ subcat }}" {% if selected_subcategory == subcat %}selected{% endif %}>{{ subcat }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="filter-item">
+                    <label for="date_filter">日期筛选：</label>
+                    <input type="date" id="date_filter" name="date_filter" value="{{ selected_date|default:'' }}">
+                </div>
+            </div>
+            <div class="button-row">
+                <button type="button" class="button" onclick="handleFilter()">分析数据</button>
+                <button type="button" class="button" onclick="resetFilters()">重置</button>
+            </div>
+        </form>
+    </div>
+
+    <div id="loading" class="loading">
+        <p>正在分析数据，请稍候...</p>
+    </div>
+
+    <div id="analysisContainer" class="analysis-container">
+        <div id="analysisContent" class="analysis-content"></div>
+        <div class="save-button-container">
+            <button type="button" class="button-primary" id="saveAnalysisBtn" onclick="saveAnalysisToFile()">保存AI分析结果</button>
+        </div>
+    </div>
+    
+    <div class="tables-container">
+        {% for model_name, data in tables_data.items %}
+            <div class="data-container">
+                <h2 class="table-title">
+                    {% if model_name == 'ai_app_jdbrandtraffic' %}
+                        品牌流量数据表
+                    {% elif model_name == 'ai_app_jdcompetitionanalysis' %}
+                        竞争分析数据表
+                    {% elif model_name == 'ai_app_jdcontenttypeanalysis' %}
+                        内容类型分析表
+                    {% elif model_name == 'ai_app_jdcorecontentdata' %}
+                        核心内容数据表
+                    {% elif model_name == 'ai_app_jdhotsearchwords' %}
+                        热点搜索词排行表
+                    {% elif model_name == 'ai_app_jdinfluenceranalysis' %}
+                        达人分析数据表
+                    {% elif model_name == 'ai_app_jdkeyworddata' %}
+                        热搜词数据表
+                    {% elif model_name == 'ai_app_jdmarketingoverview' %}
+                        营销概况数据表
+                    {% elif model_name == 'ai_app_jdmatrixanalysis' %}
+                        矩阵分析数据表
+                    {% elif model_name == 'ai_app_jdoctopusjingmaidata' %}
+                        京麦采集数据表
+                    {% elif model_name == 'ai_app_jdoveralldashboard' %}
+                        整体看板数据表
+                    {% elif model_name == 'ai_app_jdproductdiagnosis' %}
+                        商品诊断数据表
+                    {% elif model_name == 'ai_app_jdrealtimedata' %}
+                        实时数据表
+                    {% elif model_name == 'ai_app_jdregionalanalysis' %}
+                        地域分析数据表
+                    {% elif model_name == 'ai_app_jdrisingsearchwords' %}
+                        新秀搜索词排行表
+                    {% elif model_name == 'ai_app_jdshopranking' %}
+                        店铺排名数据表
+                    {% elif model_name == 'ai_app_jdsurgingsearchwords' %}
+                        飙升搜索词排行表
+                    {% elif model_name == 'ai_app_jdtempupload' %}
+                        临时上传数据表
+                    {% elif model_name == 'ai_app_jdtrafficdata' %}
+                        流量数据表
+                    {% elif model_name == 'ai_app_jdtransactiondata' %}
+                        交易数据表
+                    {% elif model_name == 'jd_content_analysis' %}
+                        内容分析数据表
+                    {% elif model_name == 'jd_data' %}
+                        京东通用数据表
+                    {% elif model_name == 'jd_easy_spider_data' %}
+                        EasySpider采集数据表
+                    {% elif model_name == 'jd_inventory_data' %}
+                        库存数据表
+                    {% elif model_name == 'jd_octopus_product_search' %}
+                        京东商品搜索数据表
+                    {% elif model_name == 'jd_product_analysis' %}
+                        商品分析数据表
+                    {% elif model_name == 'jd_product_overview' %}
+                        商品概况数据表
+                    {% elif model_name == 'jd_source_analysis' %}
+                        来源分析数据表
+                    {% else %}
+                        {{ model_name }}
+                    {% endif %}
+                </h2>
+                <div class="table-description">共 {{ data|length }} 条记录</div>
+                
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                {% for field in tables_fields|get_item:model_name %}
+                                    <th>{{ tables_verbose_names|get_item:model_name|get_item:field }}</th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in data %}
+                                <tr>
+                                    {% for field in tables_fields|get_item:model_name %}
+                                        <td>{{ item|get_field_value:field }}</td>
+                                    {% endfor %}
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        {% empty %}
+            <div class="no-data-message">没有找到任何数据。请检查筛选条件或数据库记录。</div>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+    // 重置所有筛选条件
+    function resetFilters() {
+        document.getElementById('category').value = '';
+        document.getElementById('subcategory').value = '';
+        document.getElementById('date_filter').value = '';
+        document.getElementById('analysisContainer').style.display = 'none';
+        document.querySelector('.tables-container').style.display = 'none';
+    }
+    
+    // 更新子类别选项
+    function updateSubcategories() {
+        const category = document.getElementById('category').value;
+        const subcategorySelect = document.getElementById('subcategory');
+        
+        subcategorySelect.innerHTML = '';
+        const allOption = document.createElement('option');
+        allOption.value = '';
+        allOption.textContent = '所有子类别';
+        subcategorySelect.appendChild(allOption);
+        
+        let subcategories = [];
+        switch(category) {
+            case '京麦商品搜索看板':
+                subcategories = ['热搜词', '商品诊断'];
+                break;
+            case '京准通行业大盘':
+                subcategories = ['整体看板', '地域分析', '品牌流量', '新秀搜索词排行', '飙升搜索词排行', '热点搜索词排行'];
+                break;
+            case '京准通其他数据':
+                subcategories = ['竞争分析', '营销概况', '矩阵分析'];
+                break;
+            case '商智基本数据':
+                subcategories = ['实时', '流量', '交易'];
+                break;
+            case '商智内容数据':
+                subcategories = ['类型分析', '核心数据', '达人分析', '来源分析', '内容分析', '商品分析'];
+                break;
+            case '商智产品数据':
+                subcategories = ['商品概况', '库存'];
+                break;
+            case '八爪鱼':
+                subcategories = ['京麦采集', '京东商品搜索'];
+                break;
+            case 'EasySpider':
+                subcategories = ['Easy京麦采集'];
+                break;
+        }
+        
+        subcategories.forEach(subcat => {
+            const option = document.createElement('option');
+            option.value = subcat;
+            option.textContent = subcat;
+            subcategorySelect.appendChild(option);
+        });
+    }
+
+    // 处理筛选和数据分析
+    function handleFilter() {
+        const form = document.getElementById('filterForm');
+        const formData = new FormData(form);
+        const searchParams = new URLSearchParams(formData);
+        
+        // 获取选择的日期
+        const selectedDate = document.getElementById('date_filter').value;
+        if (!selectedDate) {
+            alert('请选择日期');
+            return;
+        }
+
+        // 显示加载提示
+        document.getElementById('loading').style.display = 'block';
+        document.getElementById('analysisContainer').style.display = 'none';
+        
+        // 创建日期数组，包含选择日期及前3天
+        const dates = [];
+        const baseDate = new Date(selectedDate);
+        for (let i = 0; i < 4; i++) {
+            const date = new Date(baseDate);
+            date.setDate(date.getDate() - i);
+            dates.push(date.toISOString().split('T')[0]);
+        }
+
+        // 存储所有日期的数据
+        const allDatesData = {};
+        let completedRequests = 0;
+
+        // 首先发送当前筛选请求来更新表格显示
+        fetch(form.action + '?' + searchParams.toString())
+            .then(response => response.text())
+            .then(html => {
+                // 更新表格容器的内容
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = html;
+                const newTablesContainer = tempDiv.querySelector('.tables-container');
+                if (newTablesContainer) {
+                    document.querySelector('.tables-container').innerHTML = newTablesContainer.innerHTML;
+                    document.querySelector('.tables-container').style.display = 'flex';
+                }
+            });
+
+        // 为每个日期发送请求获取数据用于分析
+        dates.forEach(date => {
+            const dateParams = new URLSearchParams(formData);
+            dateParams.set('date_filter', date);
+            
+            fetch(form.action + '?' + dateParams.toString())
+                .then(response => response.text())
+                .then(html => {
+                    // 创建临时DOM元素来解析返回的HTML
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = html;
+                    
+                    // 提取表格数据
+                    const tablesData = {};
+                    const tables = tempDiv.querySelectorAll('.data-container');
+                    tables.forEach(table => {
+                        const title = table.querySelector('.table-title').textContent.trim();
+                        const rows = [];
+                        const headers = [];
+                        
+                        // 获取表头
+                        table.querySelectorAll('thead th').forEach(th => {
+                            headers.push(th.textContent.trim());
+                        });
+                        
+                        // 获取数据行
+                        table.querySelectorAll('tbody tr').forEach(tr => {
+                            const rowData = {};
+                            tr.querySelectorAll('td').forEach((td, index) => {
+                                rowData[headers[index]] = td.textContent.trim();
+                            });
+                            rows.push(rowData);
+                        });
+                        
+                        if (rows.length > 0) {
+                            if (!tablesData[title]) {
+                                tablesData[title] = [];
+                            }
+                            tablesData[title] = rows;
+                        }
+                    });
+
+                    // 如果这个日期有数据，添加到总数据中
+                    if (Object.keys(tablesData).length > 0) {
+                        allDatesData[date] = tablesData;
+                    }
+
+                    // 增加完成的请求计数
+                    completedRequests++;
+
+                    // 当所有请求完成时，发送到千问API
+                     if (completedRequests === dates.length) {
+                        // 限制数据大小以适应上下文长度限制
+                        let dataToSend = JSON.stringify(allDatesData);
+                        // 如果数据超过100k，进行截断
+                        if (dataToSend.length > 127000) {
+                            dataToSend = dataToSend.substring(0, 127000) + '... [数据已截断]';
+                        }
+                        
+                        // 显示临时分析结果，避免API错误时没有任何反馈
+                        document.getElementById('loading').style.display = 'none';
+                        document.getElementById('analysisContent').innerHTML = '正在分析数据，API接口可能需要一些时间...';
+                        document.getElementById('analysisContainer').style.display = 'block';
+                        
+                        // 发送数据到千问API进行分析
+                        return fetch("{% url 'qwen-chat-api' %}", {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                            },
+                            body: JSON.stringify({
+                                'content': `以下是京东电商数据中${selectedDate}及前3天（${dates.join(', ')}）的数据。请分析所有数据表的总结，包括每个数据表的具体信息和关键数据点，并给出重要的数据洞察：${dataToSend}`,
+                                'system_role': `你是一名京东自营商家的数据分析师，负责根据提供的数据进行深入分析，并为当天的运营策略提供专业建议。
+。`,
+                                'model': 'deepseek-r1-distill-qwen-1.5b'
+                            })
+                        })
+                        .then(response => {
+                            // 检查响应状态
+                            if (!response.ok) {
+                                throw new Error(`服务器返回错误状态: ${response.status}`);
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            // 检查返回的数据是否有错误信息
+                            if (data.error) {
+                                throw new Error(data.error);
+                            }
+                            
+                            // 显示分析结果
+                            const analysisContent = document.getElementById('analysisContent');
+                            
+                            if (data.text) {
+                                analysisContent.innerHTML = data.text.replace(/\n/g, '<br>');
+                            } else {
+                                analysisContent.innerHTML = '暂无分析结果';
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            document.getElementById('analysisContent').innerHTML = `数据分析请求失败: ${error.message}。<br><br>请联系管理员解决后端API问题: Application 类可能未定义或导入。`;
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error(`Error fetching data for ${date}:`, error);
+                    completedRequests++;
+                });
+        });
+    }
+
+    // 保存分析结果到运营建议.md文件
+    function saveAnalysisToFile() {
+        // 获取分析内容
+        const analysisElement = document.getElementById('analysisContent');
+        const analysisContent = analysisElement.innerHTML;
+        const selectedDate = document.getElementById('date_filter').value;
+        
+        if (!analysisContent || analysisContent === '正在分析数据，API接口可能需要一些时间...') {
+            alert('没有可保存的分析结果');
+            return;
+        }
+        
+        // 将HTML内容转换为纯文本（保留换行）
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = analysisContent;
+        const textContent = tempDiv.innerText || tempDiv.textContent;
+        
+        // 格式化日期
+        const formattedDate = new Date(selectedDate).toLocaleDateString('zh-CN', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        });
+        
+        // 准备发送的数据
+        const saveData = {
+            content: textContent,
+            date: formattedDate
+        };
+        
+        // 显示保存中状态
+        const saveBtn = document.getElementById('saveAnalysisBtn');
+        const originalText = saveBtn.textContent;
+        saveBtn.textContent = '保存中...';
+        saveBtn.disabled = true;
+        
+        // 发送请求保存文件
+        fetch('/save-analysis/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify(saveData)
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('保存失败');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                alert('分析结果已成功保存到运营建议.md文件');
+            } else {
+                alert('保存失败: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('保存失败，请查看控制台获取详细信息');
+        })
+        .finally(() => {
+            // 恢复按钮状态
+            saveBtn.textContent = originalText;
+            saveBtn.disabled = false;
+        });
+    }
+
+    // 页面加载时初始化
+    document.addEventListener('DOMContentLoaded', function() {
+        if (document.getElementById('category').value) {
+            updateSubcategories();
+            
+            const urlParams = new URLSearchParams(window.location.search);
+            const subcatParam = urlParams.get('subcategory');
+            if (subcatParam) {
+                const subcatSelect = document.getElementById('subcategory');
+                for (let i = 0; i < subcatSelect.options.length; i++) {
+                    if (subcatSelect.options[i].value === subcatParam) {
+                        subcatSelect.selectedIndex = i;
+                        break;
+                    }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %} 

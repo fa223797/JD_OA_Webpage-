@@ -1,0 +1,756 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrastyle %}
+    <style>
+        .upload-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .upload-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .upload-section h3 {
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .button-row {
+            margin-top: 20px;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .btn-batch-upload {
+            padding: 8px 15px;
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .btn-batch-upload:hover {
+            background-color: #0b7dda;
+        }
+        .btn-clean-files {
+            padding: 8px 15px;
+            background-color: #ff9800;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .btn-clean-files:hover {
+            background-color: #e68a00;
+        }
+        .status-message {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            padding: 15px 25px;
+            border-radius: 5px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            max-width: 80%;
+            text-align: center;
+            font-weight: bold;
+            font-size: 16px;
+        }
+        .success {
+            background-color: #dff0d8;
+            color: #3c763d;
+            border: 1px solid #d6e9c6;
+        }
+        .error {
+            background-color: #f2dede;
+            color: #a94442;
+            border: 1px solid #ebccd1;
+        }
+        .info {
+            background-color: #d9edf7;
+            color: #31708f;
+            border: 1px solid #bce8f1;
+        }
+        .file-input-wrapper {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .file-input-wrapper input[type="file"] {
+            flex: 1;
+            margin-right: 10px;
+        }
+        button.upload-btn {
+            padding: 5px 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button.upload-btn:hover {
+            background-color: #45a049;
+        }
+        #batch-upload-btn {
+            padding: 8px 15px;
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        #batch-upload-btn:hover {
+            background-color: #0b7dda;
+        }
+        .upload-status {
+            margin-left: 10px;
+            font-size: 14px;
+            transition: opacity 0.5s ease;
+            min-width: 120px;
+            display: inline-block;
+        }
+        .stats-panel {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .stat-item {
+            display: inline-block;
+            margin-right: 20px;
+            padding: 8px 15px;
+            border-radius: 4px;
+        }
+        .stat-item.success { background-color: #e8f5e9; color: #2e7d32; }
+        .stat-item.error { background-color: #ffebee; color: #c62828; }
+        .stat-label { font-weight: bold; }
+        .stat-value { margin-left: 10px; }
+        .diagnostics-area {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        .btn-toggle-log {
+            margin-top: 10px;
+            padding: 5px 10px;
+            background-color: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .btn-toggle-log:hover {
+            background-color: #5a6268;
+        }
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div id="status-message" class="status-message" style="display: none;"></div>
+
+<div class="upload-container">
+    <h1>{{ title }}</h1>
+    <p>{{ subtitle }}</p>
+    
+    <div class="upload-section">
+        <h3>京麦商品搜索看板</h3>
+        <div class="form-group">
+            <label for="jm-search-file">词下表现 (.csv, .xlsx)</label>
+            <div class="file-input-wrapper">
+                <input type="file" id="jm-search-file" name="file" accept=".csv, .xlsx, .xls">
+                <button type="button" class="upload-btn" data-category="京麦商品搜索看板" data-subcategory="热搜词">上传词下表现</button>
+                <span class="upload-status"></span>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="jm-diagnosis-file">商品诊断数据 (.csv, .xlsx)</label>
+            <div class="file-input-wrapper">
+                <input type="file" id="jm-diagnosis-file" name="file" accept=".csv, .xlsx, .xls">
+                <button type="button" class="upload-btn" data-category="京麦商品搜索看板" data-subcategory="商品诊断">上传商品诊断数据</button>
+                <span class="upload-status"></span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="upload-section">
+        <h3>京准通行业大盘</h3>
+        <div class="form-group">
+            <label for="jzt-overall-file">整体看板 (.csv, .xlsx)</label>
+            <div class="file-input-wrapper">
+                <input type="file" id="jzt-overall-file" name="file" accept=".csv, .xlsx, .xls">
+                <button type="button" class="upload-btn" data-category="京准通行业大盘" data-subcategory="整体看板">上传整体看板</button>
+                <span class="upload-status"></span>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="jzt-regional-file">地域分析 (.csv, .xlsx)</label>
+            <div class="file-input-wrapper">
+                <input type="file" id="jzt-regional-file" name="file" accept=".csv, .xlsx, .xls">
+                <button type="button" class="upload-btn" data-category="京准通行业大盘" data-subcategory="地域分析">上传地域分析</button>
+                <span class="upload-status"></span>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="jzt-brand-file">品牌流量 (.csv, .xlsx)</label>
+            <div class="file-input-wrapper">
+                <input type="file" id="jzt-brand-file" name="file" accept=".csv, .xlsx, .xls">
+                <button type="button" class="upload-btn" data-category="京准通行业大盘" data-subcategory="品牌流量">上传品牌流量</button>
+                <span class="upload-status"></span>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="jzt-rising-file">新秀搜索词排行 (.csv, .xlsx)</label>
+            <div class="file-input-wrapper">
+                <input type="file" id="jzt-rising-file" name="file" accept=".csv, .xlsx, .xls">
+                <button type="button" class="upload-btn" data-category="京准通行业大盘" data-subcategory="新秀搜索词排行">上传新秀搜索词</button>
+                <span class="upload-status"></span>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="jzt-surging-file">飙升搜索词排行 (.csv, .xlsx)</label>
+            <div class="file-input-wrapper">
+                <input type="file" id="jzt-surging-file" name="file" accept=".csv, .xlsx, .xls">
+                <button type="button" class="upload-btn" data-category="京准通行业大盘" data-subcategory="飙升搜索词排行">上传飙升搜索词</button>
+                <span class="upload-status"></span>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="jzt-hot-file">热点搜索词排行 (.csv, .xlsx)</label>
+            <div class="file-input-wrapper">
+                <input type="file" id="jzt-hot-file" name="file" accept=".csv, .xlsx, .xls">
+                <button type="button" class="upload-btn" data-category="京准通行业大盘" data-subcategory="热点搜索词排行">上传热点搜索词</button>
+                <span class="upload-status"></span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="upload-section">
+        <h3>京准通其他数据</h3>
+        <div class="form-group">
+            <label for="jzt-competition-file">竞争分析 (.csv, .xlsx)</label>
+            <div class="file-input-wrapper">
+                <input type="file" id="jzt-competition-file" name="file" accept=".csv, .xlsx, .xls">
+                <button type="button" class="upload-btn" data-category="京准通其他数据" data-subcategory="竞争分析">上传竞争分析</button>
+                <span class="upload-status"></span>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="jzt-marketing-file">营销概况 (.csv, .xlsx)</label>
+            <div class="file-input-wrapper">
+                <input type="file" id="jzt-marketing-file" name="file" accept=".csv, .xlsx, .xls">
+                <button type="button" class="upload-btn" data-category="京准通其他数据" data-subcategory="营销概况">上传营销概况</button>
+                <span class="upload-status"></span>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="jzt-matrix-file">矩阵分析 (.csv, .xlsx)</label>
+            <div class="file-input-wrapper">
+                <input type="file" id="jzt-matrix-file" name="file" accept=".csv, .xlsx, .xls">
+                <button type="button" class="upload-btn" data-category="京准通其他数据" data-subcategory="矩阵分析">上传矩阵分析</button>
+                <span class="upload-status"></span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="upload-section">
+        <h3>商智数据</h3>
+        <div class="form-group">
+            <label for="sz-real-time-file">实时概况 (.csv, .xlsx)</label>
+            <div class="file-input-wrapper">
+                <input type="file" id="sz-real-time-file" name="file" accept=".csv, .xlsx, .xls">
+                <button type="button" class="upload-btn" data-category="商智基本数据" data-subcategory="实时">上传实时概况</button>
+                <span class="upload-status"></span>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="sz-traffic-file">流量总览 (.csv, .xlsx)</label>
+            <div class="file-input-wrapper">
+                <input type="file" id="sz-traffic-file" name="file" accept=".csv, .xlsx, .xls">
+                <button type="button" class="upload-btn" data-category="商智基本数据" data-subcategory="流量">上传流量总览</button>
+                <span class="upload-status"></span>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="sz-transaction-file">交易概况 (.csv, .xlsx)</label>
+            <div class="file-input-wrapper">
+                <input type="file" id="sz-transaction-file" name="file" accept=".csv, .xlsx, .xls">
+                <button type="button" class="upload-btn" data-category="商智基本数据" data-subcategory="交易">上传交易概况</button>
+                <span class="upload-status"></span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="upload-section">
+        <h3>商智内容数据</h3>
+        <div class="form-group">
+            <label for="sz-type-analysis-file">类型分析 (.csv, .xlsx)</label>
+            <div class="file-input-wrapper">
+                <input type="file" id="sz-type-analysis-file" name="file" accept=".csv, .xlsx, .xls">
+                <button type="button" class="upload-btn" data-category="商智内容数据" data-subcategory="类型分析">上传类型分析</button>
+                <span class="upload-status"></span>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="sz-core-data-file">核心数据 (.csv, .xlsx)</label>
+            <div class="file-input-wrapper">
+                <input type="file" id="sz-core-data-file" name="file" accept=".csv, .xlsx, .xls">
+                <button type="button" class="upload-btn" data-category="商智内容数据" data-subcategory="核心数据">上传核心数据</button>
+                <span class="upload-status"></span>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="sz-influencer-file">达人分析 (.csv, .xlsx)</label>
+            <div class="file-input-wrapper">
+                <input type="file" id="sz-influencer-file" name="file" accept=".csv, .xlsx, .xls">
+                <button type="button" class="upload-btn" data-category="商智内容数据" data-subcategory="达人分析">上传达人分析</button>
+                <span class="upload-status"></span>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="sz-source-analysis-file">来源分析 (.csv, .xlsx)</label>
+            <div class="file-input-wrapper">
+                <input type="file" id="sz-source-analysis-file" name="file" accept=".csv, .xlsx, .xls">
+                <button type="button" class="upload-btn" data-category="商智内容数据" data-subcategory="来源分析">上传来源分析</button>
+                <span class="upload-status"></span>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="sz-content-analysis-file">内容分析 (.csv, .xlsx)</label>
+            <div class="file-input-wrapper">
+                <input type="file" id="sz-content-analysis-file" name="file" accept=".csv, .xlsx, .xls">
+                <button type="button" class="upload-btn" data-category="商智内容数据" data-subcategory="内容分析">上传内容分析</button>
+                <span class="upload-status"></span>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="sz-product-analysis-file">商品分析 (.csv, .xlsx)</label>
+            <div class="file-input-wrapper">
+                <input type="file" id="sz-product-analysis-file" name="file" accept=".csv, .xlsx, .xls">
+                <button type="button" class="upload-btn" data-category="商智内容数据" data-subcategory="商品分析">上传商品分析</button>
+                <span class="upload-status"></span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="upload-section">
+        <h3>商智产品数据</h3>
+        <div class="form-group">
+            <label for="sz-product-overview-file">商品概况 (.csv, .xlsx)</label>
+            <div class="file-input-wrapper">
+                <input type="file" id="sz-product-overview-file" name="file" accept=".csv, .xlsx, .xls">
+                <button type="button" class="upload-btn" data-category="商智产品数据" data-subcategory="商品概况">上传商品概况</button>
+                <span class="upload-status"></span>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="sz-inventory-file">库存概况 (.csv, .xlsx)</label>
+            <div class="file-input-wrapper">
+                <input type="file" id="sz-inventory-file" name="file" accept=".csv, .xlsx, .xls">
+                <button type="button" class="upload-btn" data-category="商智产品数据" data-subcategory="库存">上传库存概况</button>
+                <span class="upload-status"></span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="upload-section">
+        <h3>八爪鱼数据</h3>
+        <div class="form-group">
+            <label for="octopus-jingmai-file">京麦采集 (.csv, .xlsx)</label>
+            <div class="file-input-wrapper">
+                <input type="file" id="octopus-jingmai-file" name="file" accept=".csv, .xlsx, .xls">
+                <button type="button" class="upload-btn" data-category="八爪鱼" data-subcategory="京麦采集">上传京麦采集</button>
+                <span class="upload-status"></span>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="octopus-search-file">京东商品搜索 (.csv, .xlsx)</label>
+            <div class="file-input-wrapper">
+                <input type="file" id="octopus-search-file" name="file" accept=".csv, .xlsx, .xls">
+                <button type="button" class="upload-btn" data-category="八爪鱼" data-subcategory="京东商品搜索">上传商品搜索</button>
+                <span class="upload-status"></span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="upload-section">
+        <h3>EasySpider数据</h3>
+        <div class="form-group">
+            <label for="easy-spider-file">Easy京麦采集 (.csv, .xlsx)</label>
+            <div class="file-input-wrapper">
+                <input type="file" id="easy-spider-file" name="file" accept=".csv, .xlsx, .xls">
+                <button type="button" class="upload-btn" data-category="EasySpider" data-subcategory="Easy麦采集">上传Easy京麦采集</button>
+                <span class="upload-status"></span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 修改批量上传部分，添加一键清理文件按钮 -->
+    <div class="batch-upload-section">
+        <div class="button-group">
+            <button type="button" class="btn-batch-upload" id="batch-upload-btn">自动识别并上传全部文件</button>
+            <button type="button" class="btn-clean-files" id="clean-files-btn">一键清理文件</button>
+        </div>
+        <div class="upload-progress" id="batch-progress"></div>
+        
+        <!-- 添加诊断日志区域 -->
+        <div class="diagnostics-area" id="diagnostics-area" style="display: none;">
+            <h4>诊断信息</h4>
+            <div class="diagnostics-content" id="diagnostics-content">
+                <pre id="diagnostics-log" style="max-height: 300px; overflow-y: auto; padding: 10px; background-color: #f5f5f5; border: 1px solid #ddd; border-radius: 4px;"></pre>
+            </div>
+            <button type="button" class="btn-toggle-log" id="toggle-log-btn">显示/隐藏诊断日志</button>
+        </div>
+    </div>
+</div>
+
+<!-- 在批量上传按钮下方添加统计面板 -->
+<div class="stats-panel">
+    <h4>上传统计</h4>
+    <div class="stats-content">
+        <div class="stat-item success">
+            <span class="stat-label">成功:</span>
+            <span class="stat-value" id="success-count">0</span>
+        </div>
+        <div class="stat-item error">
+            <span class="stat-label">失败:</span>
+            <span class="stat-value" id="error-count">0</span>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 设置CSRF令牌
+        const csrfToken = '{{ csrf_token }}';
+        
+        // 单文件上传处理
+        document.querySelectorAll('.upload-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const category = this.getAttribute('data-category');
+                const subcategory = this.getAttribute('data-subcategory');
+                const fileInputId = this.parentElement.querySelector('input[type="file"]').id;
+                const fileInput = document.getElementById(fileInputId);
+                
+                if (!fileInput.files.length) {
+                    showMessage('请选择要上传的文件', 'error');
+                    return;
+                }
+                
+                uploadFile(fileInput.files[0], category, subcategory);
+            });
+        });
+        
+        // 修改批量上传处理
+        document.getElementById('batch-upload-btn').addEventListener('click', async function() {
+            const progressDiv = document.getElementById('batch-progress');
+            const diagnosticsArea = document.getElementById('diagnostics-area');
+            const diagnosticsLog = document.getElementById('diagnostics-log');
+            
+            // 重置诊断区域
+            diagnosticsLog.innerHTML = '';
+            diagnosticsArea.style.display = 'none';
+            
+            progressDiv.innerHTML = `正在扫描文件夹并识别文件...`;
+            
+            try {
+                // 调用新的后端接口，自动扫描并上传文件
+                const response = await fetch('/auto-upload-files/', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrfToken,
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    progressDiv.innerHTML = `
+                        自动上传完成！<br>
+                        成功：${result.success} 个文件<br>
+                        失败：${result.failed} 个文件<br>
+                        跳过：${result.skipped} 个文件
+                    `;
+                    
+                    // 显示诊断信息
+                    if (result.diagnostics) {
+                        const diagnosticText = [
+                            `文件夹路径: ${result.diagnostics.jd_dir}`,
+                            `找到文件总数: ${result.diagnostics.all_files_count}`,
+                            `找到的文件: ${result.diagnostics.all_files.join(', ')}`,
+                            `可匹配的关键字: ${result.diagnostics.mappings.join(', ')}`,
+                            '',
+                            '详细处理记录:',
+                        ];
+                        
+                        if (result.processed && result.processed.length > 0) {
+                            result.processed.forEach((file, index) => {
+                                diagnosticText.push(`${index + 1}. 文件: ${file.filename}, 模型: ${file.model}, 类别: ${file.category}/${file.subcategory}`);
+                            });
+                        } else {
+                            diagnosticText.push('没有成功处理任何文件，可能原因:');
+                            diagnosticText.push('1. 文件名不匹配预设模式 (检查文件名是否为标准名称如"词下表现.csv")');
+                            diagnosticText.push('2. 文件格式不正确 (仅支持 .csv, .xlsx, .xls)');
+                            diagnosticText.push('3. 文件路径不正确 (请确保文件位于jd目录下)');
+                            diagnosticText.push('');
+                            diagnosticText.push('建议: 先使用"一键清理文件"功能标准化文件名，然后再尝试上传。');
+                        }
+
+                        // 显示失败的文件列表
+                if (result.failed_files && result.failed_files.length > 0) {
+                    progressDiv.innerHTML += `<br><br>失败的文件：<br>${result.failed_files.join('<br>')}`;
+                }
+                        
+                        diagnosticsLog.textContent = diagnosticText.join('\n');
+                        diagnosticsArea.style.display = 'block';
+                    }
+                    
+                    showMessage(`自动上传完成：成功 ${result.success} 个，失败 ${result.failed} 个，跳过 ${result.skipped} 个`, 'success');
+                    
+                    // 更新统计信息
+                    updateStats(result.success, result.failed);
+                } else {
+                    progressDiv.innerHTML = `上传失败：${result.message}`;
+                    showMessage('自动上传失败：' + result.message, 'error');
+                    
+                    // 显示错误诊断
+                    diagnosticsLog.textContent = `错误: ${result.message}\n\n请检查服务器日志获取更多信息。`;
+                    diagnosticsArea.style.display = 'block';
+                }
+            } catch (error) {
+                progressDiv.innerHTML = `操作失败：${error}`;
+                showMessage('操作失败：' + error, 'error');
+                
+                // 显示错误诊断
+                diagnosticsLog.textContent = `错误: ${error}\n\n请检查网络连接和服务器状态。`;
+                diagnosticsArea.style.display = 'block';
+            }
+            
+            setTimeout(() => {
+                // 5秒后降低进度信息的透明度
+                progressDiv.style.opacity = '0.5';
+            }, 5000);
+        });
+        
+        // 添加诊断日志的显示/隐藏功能
+        document.getElementById('toggle-log-btn').addEventListener('click', function() {
+            const diagnosticsLog = document.getElementById('diagnostics-log');
+            if (diagnosticsLog.style.display === 'none') {
+                diagnosticsLog.style.display = 'block';
+                this.textContent = '隐藏诊断日志';
+            } else {
+                diagnosticsLog.style.display = 'none';
+                this.textContent = '显示诊断日志';
+            }
+        });
+        
+        // 添加一键清理文件功能
+        document.getElementById('clean-files-btn').addEventListener('click', function() {
+            if (confirm('确定要执行文件清理吗？此操作将根据匹配规则重命名所有文件。')) {
+                const progressDiv = document.getElementById('batch-progress');
+                progressDiv.innerHTML = `正在清理文件...`;
+                
+                fetch('/rename-files/', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrfToken,
+                        'Content-Type': 'application/json',
+                    },
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        progressDiv.innerHTML = `
+                            文件清理完成！<br>
+                            成功重命名：${data.renamed} 个<br>
+                            失败：${data.errors} 个
+                        `;
+                        showMessage(`文件清理完成：成功重命名 ${data.renamed} 个文件，失败 ${data.errors} 个`, 'success');
+                    } else {
+                        progressDiv.innerHTML = `文件清理失败：${data.message}`;
+                        showMessage('文件清理失败：' + data.message, 'error');
+                    }
+                    
+                    setTimeout(() => {
+                        progressDiv.innerHTML = '';
+                    }, 5000);
+                })
+                .catch(error => {
+                    progressDiv.innerHTML = `操作失败：${error}`;
+                    showMessage('操作失败：' + error, 'error');
+                    
+                    setTimeout(() => {
+                        progressDiv.innerHTML = '';
+                    }, 5000);
+                });
+            }
+        });
+        
+        // 类别变化时更新子类别选项
+        document.getElementById('batch-category').addEventListener('change', function() {
+            const category = this.value;
+            const subcategorySelect = document.getElementById('batch-subcategory');
+            
+            // 清空现有选项
+            subcategorySelect.innerHTML = '';
+            
+            if (!category) {
+                subcategorySelect.innerHTML = '<option value="">-- 请先选择类别 --</option>';
+                return;
+            }
+            
+            // 根据所选类别添加相应的子类别选项
+            let options = [];
+            if (category === '京麦商品搜索看板') {
+                options = ['热搜词', '商品诊断'];
+            } else if (category === '京准通行业大盘') {
+                options = ['整体看板', '地域分析', '品牌流量', '新秀搜索词排行', '飙升搜索词排行', '热点搜索词排行'];
+            } else if (category === '京准通其他数据') {
+                options = ['竞争分析', '营销概况', '矩阵分析'];
+            } else if (category === '商智基本数据') {
+                options = ['实时', '流量', '交易'];
+            } else if (category === '商智内容数据') {
+                options = ['类型分析', '核心数据', '达人分析', '来源分析', '内容分析', '商品分析'];
+            } else if (category === '商智产品数据') {
+                options = ['商品概况', '库存'];
+            } else if (category === '八爪鱼') {
+                options = ['Easy京麦采集', '京东商品搜索'];
+            } else if (category === 'EasySpider') {
+                options = ['Easy京麦采集'];
+            }
+            
+            // 添加选项到下拉列表
+            options.forEach(option => {
+                const optionElement = document.createElement('option');
+                optionElement.value = option;
+                optionElement.textContent = option;
+                subcategorySelect.appendChild(optionElement);
+            });
+        });
+        
+        // 上传文件的函数
+        async function uploadFile(file, category, subcategory) {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('category', category);
+            formData.append('subcategory', subcategory);
+            
+            // 获取当前上传按钮的状态元素
+            const statusElement = event.target.parentElement.querySelector('.upload-status');
+            statusElement.innerHTML = '上传中...';
+            statusElement.style.color = '#2196F3';
+
+            try {
+                const response = await fetch('/jd-data/upload/', {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-CSRFToken': csrfToken
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    statusElement.innerHTML = '✓ 上传成功';
+                    statusElement.style.color = '#4CAF50';
+                    // 5秒后淡出
+                    setTimeout(() => {
+                        statusElement.style.opacity = '0';
+                        setTimeout(() => {
+                            statusElement.innerHTML = '';
+                            statusElement.style.opacity = '1';
+                        }, 1000);
+                    }, 5000);
+                } else {
+                    statusElement.innerHTML = '✗ 上传失败: ' + result.message;
+                    statusElement.style.color = '#f44336';
+                }
+            } catch (error) {
+                statusElement.innerHTML = '✗ 网络错误: ' + error.message;
+                statusElement.style.color = '#f44336';
+            }
+        }
+        
+        // 修改原有handleFileUpload函数，增加Promise支持
+        async function handleFileUpload(file, category, subcategory) {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('category', category);
+            formData.append('subcategory', subcategory);
+
+            try {
+                const response = await fetch('/jd-data/upload/', {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-CSRFToken': csrfToken
+                    }
+                });
+                
+                const result = await response.json();
+                if (result.status === 'success') {
+                    return Promise.resolve(result);
+                } else {
+                    return Promise.reject(result);
+                }
+            } catch (error) {
+                return Promise.reject(error);
+            }
+        }
+        
+        // 显示消息的函数
+        function showMessage(message, type) {
+            const statusElement = document.getElementById('status-message');
+            statusElement.textContent = message;
+            statusElement.className = 'status-message ' + type;
+            statusElement.style.display = 'block';
+            
+            // 确保滚动到顶部以便看到消息
+            window.scrollTo(0, 0);
+            
+            // 成功和信息消息5秒后自动隐藏
+            if (type === 'success' || type === 'info') {
+                setTimeout(() => {
+                    // 淡出效果
+                    statusElement.style.opacity = '1';
+                    let fadeEffect = setInterval(function() {
+                        if (statusElement.style.opacity > 0) {
+                            statusElement.style.opacity -= 0.1;
+                        } else {
+                            clearInterval(fadeEffect);
+                            statusElement.style.display = 'none';
+                        }
+                    }, 50);
+                }, 5000);
+            }
+        }
+
+        // 更新函数签名，接受参数
+        function updateStats(success, error) {
+            document.getElementById('success-count').textContent = success;
+            document.getElementById('error-count').textContent = error;
+        }
+    });
+</script>
+{% endblock %} 
