@@ -5,8 +5,12 @@ ai_app：是各大平台接口的内容，其中接口内容都卸载了views.py
 config：是项目配置文件，包括settings.py、urls.py、wsgi.py、asgi.py
 emo_api:是关于心里评估量表的后台内容，其中views.py里面是各种量表的算法
 wechat_app：是微信小程序相关的内容，主要就是前台的小程序基本就是个页面，后台来计算所有的东西，包括聊天，调用各大接口，还有心理评估量表的页面
+![jd](https://github.com/user-attachments/assets/1432e7d5-0794-4826-b878-75030ba08ea4)
+![jd1](https://github.com/user-attachments/assets/7f798c24-50d6-4508-b796-dfc12b1c9c4b)
+
 
 # 项目启动后的每日流程：
+![每日流程](https://github.com/user-attachments/assets/65156894-7131-4dcd-8506-bae6f00fcce3)
 
 
 # ========== 0. 项目目录 ==========
